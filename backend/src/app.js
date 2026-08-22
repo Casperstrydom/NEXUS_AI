@@ -8,9 +8,9 @@ import conversationRoutes from "./routes/conversationRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 
 const app = express();
+app.set("trust proxy", 1);
 
-const FRONTEND_URL =
-  process.env.FRONTEND_URL || "http://localhost:5173";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 /*
   ========================================
@@ -62,10 +62,7 @@ app.use(
 
       secure: process.env.NODE_ENV === "production",
 
-      sameSite:
-        process.env.NODE_ENV === "production"
-          ? "none"
-          : "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
 
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },
