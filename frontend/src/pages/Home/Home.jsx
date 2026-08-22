@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/useAuth.js";
+import API_URL from "../../config/api.js";
 
 const tools = [
   {
@@ -79,7 +80,7 @@ function Home() {
   useEffect(() => {
     async function loadConversations() {
       try {
-        const response = await fetch("/api/conversations", {
+        const response = await fetch(`${API_URL}/api/conversations`, {
           method: "GET",
           credentials: "include",
         });
@@ -103,10 +104,13 @@ function Home() {
     try {
       setMessageError("");
 
-      const response = await fetch(`/api/conversations/${id}/messages`, {
-        method: "GET",
-        credentials: "include",
-      });
+      const response = await fetch(
+        `${API_URL}/api/conversations/${id}/messages`,
+        {
+          method: "GET",
+          credentials: "include",
+        },
+      );
 
       const data = await response.json();
 
@@ -134,7 +138,7 @@ function Home() {
     try {
       setMessageError("");
 
-      const response = await fetch(`/api/conversations/${id}`, {
+      const response = await fetch(`${API_URL}/api/conversations/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -188,16 +192,19 @@ function Home() {
 
       // Create a conversation if this is the first message
       if (!currentConversationId) {
-        const conversationResponse = await fetch("/api/conversations", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        const conversationResponse = await fetch(
+          `${API_URL}/api/conversations`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({
+              title: cleanMessage.slice(0, 50),
+            }),
           },
-          credentials: "include",
-          body: JSON.stringify({
-            title: cleanMessage.slice(0, 50),
-          }),
-        });
+        );
 
         const conversationData = await conversationResponse.json();
 
@@ -230,8 +237,9 @@ function Home() {
       setMessage("");
 
       // Send message to NexusAI backend
+      // Send message to NexusAI backend
       const response = await fetch(
-        `/api/conversations/${currentConversationId}/messages`,
+        `${API_URL}/api/conversations/${currentConversationId}/messages`,
         {
           method: "POST",
           headers: {

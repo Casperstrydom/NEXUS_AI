@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/useAuth.js";
-
+import API_URL from "../../config/api.js";
 function Login() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
@@ -21,7 +21,7 @@ function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
 
         credentials: "include",
