@@ -227,16 +227,16 @@ function Home() {
 
       // Show the user's message immediately
       const temporaryUserMessage = {
-        id: `user-${Date.now()}`,
+        id: `temp-user-${Date.now()}`,
         sender: "user",
         text: cleanMessage,
+        temporary: true,
       };
 
       setMessages((previous) => [...previous, temporaryUserMessage]);
 
       setMessage("");
 
-      // Send message to NexusAI backend
       // Send message to NexusAI backend
       const response = await fetch(
         `${API_URL}/api/conversations/${currentConversationId}/messages`,
