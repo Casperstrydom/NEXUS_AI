@@ -258,6 +258,19 @@ function Home() {
         throw new Error(data.message || "Failed to send message");
       }
 
+      // Replace the temporary user message with the real MongoDB message
+      setMessages((previous) =>
+        previous.map((item) =>
+          item.temporary
+            ? {
+                id: data.userMessage._id,
+                sender: "user",
+                text: data.userMessage.content,
+              }
+            : item,
+        ),
+      );
+
       // Add the real AI response
       const assistantMessage = {
         id: data.assistantMessage._id,
@@ -276,7 +289,6 @@ function Home() {
       setSendingMessage(false);
     }
   }
-
   function handleQuickAction(action) {
     if (action === "Start a conversation") {
       setActiveTool("chat");
