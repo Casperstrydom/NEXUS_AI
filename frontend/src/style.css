@@ -1321,6 +1321,65 @@ button:disabled {
 }
 
 /* =========================================================
+   HAMBURGER BUTTON
+========================================================= */
+
+.nexus-hamburger-button {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+.nexus-hamburger-button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hamburger-line {
+  width: 22px;
+  height: 2.5px;
+  background-color: #e4e4e7;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+/* =========================================================
+   MOBILE OVERLAY
+========================================================= */
+
+.nexus-mobile-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 999;
+  animation: nexusFadeIn 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+
+@keyframes nexusFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* =========================================================
    HEADER TITLE
 ========================================================= */
 
@@ -2577,10 +2636,35 @@ button:disabled {
     min-height: 100vh;
   }
 
-  /* Hide desktop sidebar */
+  /* Show hamburger button */
+  .nexus-hamburger-button {
+    display: flex;
+  }
 
+  /* Show mobile overlay */
+  .nexus-mobile-overlay {
+    display: block;
+  }
+
+  /* Mobile sidebar - slide in from left */
   .nexus-sidebar {
-    display: none;
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 85%;
+    max-width: 320px;
+    height: 100vh;
+    z-index: 1000;
+    transition: left 0.3s ease-in-out;
+    border-right: 1px solid rgba(63, 63, 70, 0.6);
+    border-radius: 0;
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.4);
+    overflow-y: auto;
+    display: flex;
+  }
+
+  .nexus-sidebar.nexus-sidebar-open {
+    left: 0;
   }
 
   .nexus-app {

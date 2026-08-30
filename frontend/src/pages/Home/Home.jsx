@@ -77,6 +77,9 @@ function Home() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [messageError, setMessageError] = useState("");
 
+  // State for mobile sidebar
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   useEffect(() => {
     async function loadConversations() {
       try {
@@ -127,6 +130,9 @@ function Home() {
       setConversationId(id);
       setMessages(formattedMessages);
       setActiveTool("chat");
+
+      // Close sidebar on mobile when opening a conversation
+      setIsSidebarOpen(false);
     } catch (error) {
       console.error("Open conversation error:", error);
 
@@ -149,13 +155,10 @@ function Home() {
         throw new Error(data.message || "Failed to delete conversation");
       }
 
-      // Remove the conversation from the sidebar
       setConversations((previous) =>
         previous.filter((conversation) => conversation._id !== id),
       );
 
-      // If the deleted conversation is currently open,
-      // return to a new empty chat.
       if (conversationId === id) {
         setConversationId(null);
         setMessages([]);
@@ -169,10 +172,7 @@ function Home() {
     }
   }
 
-  // Settings modal
   const [settingsOpen, setSettingsOpen] = useState(false);
-
-  // Logout loading state
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function sendMessage(event) {
@@ -190,7 +190,6 @@ function Home() {
     try {
       let currentConversationId = conversationId;
 
-      // Create a conversation if this is the first message
       if (!currentConversationId) {
         const conversationResponse = await fetch(
           `${API_URL}/api/conversations`,
@@ -218,14 +217,12 @@ function Home() {
 
         setConversationId(currentConversationId);
 
-        // Add the new conversation to the sidebar
         setConversations((previous) => [
           conversationData.conversation,
           ...previous,
         ]);
       }
 
-      // Show the user's message immediately
       const temporaryUserMessage = {
         id: `temp-user-${Date.now()}`,
         sender: "user",
@@ -237,7 +234,6 @@ function Home() {
 
       setMessage("");
 
-      // Send message to NexusAI backend
       const response = await fetch(
         `${API_URL}/api/conversations/${currentConversationId}/messages`,
         {
@@ -258,7 +254,6 @@ function Home() {
         throw new Error(data.message || "Failed to send message");
       }
 
-      // Replace the temporary user message with the real MongoDB message
       setMessages((previous) =>
         previous.map((item) =>
           item.temporary
@@ -271,7 +266,6 @@ function Home() {
         ),
       );
 
-      // Add the real AI response
       const assistantMessage = {
         id: data.assistantMessage._id,
         sender: "ai",
@@ -289,6 +283,7 @@ function Home() {
       setSendingMessage(false);
     }
   }
+
   function handleQuickAction(action) {
     if (action === "Start a conversation") {
       setActiveTool("chat");
@@ -308,6 +303,9 @@ function Home() {
     if (action === "Create music") {
       setActiveTool("music");
     }
+
+    // Close sidebar on mobile when selecting a quick action
+    setIsSidebarOpen(false);
   }
 
   function handleNewChat() {
@@ -316,6 +314,9 @@ function Home() {
     setConversationId(null);
     setMessageError("");
     setActiveTool("chat");
+
+    // Close sidebar on mobile when starting a new chat
+    setIsSidebarOpen(false);
   }
 
   async function handleLogout() {
@@ -340,10 +341,20 @@ function Home() {
 
   function handleSettings() {
     setSettingsOpen(true);
+    // Close sidebar on mobile when opening settings
+    setIsSidebarOpen(false);
   }
 
   function closeSettings() {
     setSettingsOpen(false);
+  }
+
+  function toggleSidebar() {
+    setIsSidebarOpen(!isSidebarOpen);
+  }
+
+  function closeSidebar() {
+    setIsSidebarOpen(false);
   }
 
   const displayName = user?.name || "User";
@@ -352,16 +363,22 @@ function Home() {
   return (
     <main className="nexus-app">
       {/* =====================================================
+          MOBILE OVERLAY
+      ====================================================== */}
+      {isSidebarOpen && (
+        <div className="nexus-mobile-overlay" onClick={closeSidebar} />
+      )}
+
+      {/* =====================================================
           SIDEBAR
       ====================================================== */}
-
-      <aside className="nexus-sidebar">
+      <aside
+        className={`nexus-sidebar ${isSidebarOpen ? "nexus-sidebar-open" : ""}`}
+      >
         <div className="nexus-sidebar-top">
           {/* BRAND */}
-
           <div className="nexus-sidebar-brand">
             <div className="brand-symbol">✦</div>
-
             <div className="nexus-brand-text">
               <strong>NexusAI</strong>
               <span>AI Workspace</span>
@@ -369,7 +386,6 @@ function Home() {
           </div>
 
           {/* NEW CHAT */}
-
           <button
             type="button"
             className="nexus-new-chat"
@@ -378,6 +394,7 @@ function Home() {
             <span>＋</span>
             <strong>New Chat</strong>
           </button>
+
           <nav className="nexus-chat-history">
             {conversations.length === 0 ? (
               <div className="nexus-chat-empty">No conversations yet</div>
@@ -397,7 +414,6 @@ function Home() {
                     onClick={() => openConversation(conversation._id)}
                   >
                     <span className="nexus-chat-history-icon">💬</span>
-
                     <span className="nexus-chat-history-title">
                       {conversation.title || "New conversation"}
                     </span>
@@ -423,7 +439,6 @@ function Home() {
           </nav>
 
           {/* NAVIGATION */}
-
           <div className="nexus-nav-title">AI TOOLS</div>
 
           <nav className="nexus-tool-list">
@@ -434,10 +449,12 @@ function Home() {
                 className={`nexus-tool ${
                   activeTool === tool.id ? "nexus-tool-active" : ""
                 }`}
-                onClick={() => setActiveTool(tool.id)}
+                onClick={() => {
+                  setActiveTool(tool.id);
+                  setIsSidebarOpen(false); // Close sidebar on mobile
+                }}
               >
                 <span className="nexus-tool-icon">{tool.icon}</span>
-
                 <span className="nexus-tool-content">
                   <strong>{tool.name}</strong>
                   <small>{tool.description}</small>
@@ -447,40 +464,29 @@ function Home() {
           </nav>
         </div>
 
-        {/* ===================================================
-            SIDEBAR BOTTOM
-        ==================================================== */}
-
+        {/* SIDEBAR BOTTOM */}
         <div className="nexus-sidebar-bottom">
-          {/* SETTINGS */}
-
           <button
             type="button"
             className="nexus-settings-button"
             onClick={handleSettings}
           >
             <span className="nexus-settings-icon">⚙️</span>
-
             <div>
               <strong>Settings</strong>
               <small>Account settings</small>
             </div>
-
             <span className="nexus-settings-arrow">›</span>
           </button>
-
-          {/* USER */}
 
           <div className="nexus-user">
             <div className="nexus-user-avatar">
               {displayName.charAt(0).toUpperCase()}
             </div>
-
             <div className="nexus-user-info">
               <strong>{displayName}</strong>
               <span>{userEmail}</span>
             </div>
-
             <button
               type="button"
               className="nexus-logout"
@@ -497,14 +503,23 @@ function Home() {
       {/* =====================================================
           MAIN CONTENT
       ====================================================== */}
-
       <section className="nexus-main">
         {/* TOP BAR */}
-
         <header className="nexus-header">
+          {/* HAMBURGER BUTTON */}
+          <button
+            type="button"
+            className="nexus-hamburger-button"
+            onClick={toggleSidebar}
+            aria-label="Toggle menu"
+          >
+            <span className="hamburger-line"></span>
+            <span className="hamburger-line"></span>
+            <span className="hamburger-line"></span>
+          </button>
+
           <div className="nexus-mobile-brand">
             <div className="brand-symbol">✦</div>
-
             <div>
               <strong>NexusAI</strong>
               <span>AI Workspace</span>
@@ -517,7 +532,6 @@ function Home() {
                 ? "NexusAI"
                 : tools.find((tool) => tool.id === activeTool)?.name}
             </strong>
-
             <span>
               {activeTool === "chat" ? "AI Assistant" : "NexusAI AI Tool"}
             </span>
@@ -537,8 +551,6 @@ function Home() {
               ⓘ
             </button>
 
-            {/* MOBILE SETTINGS */}
-
             <button
               type="button"
               className="nexus-header-button nexus-mobile-settings"
@@ -547,8 +559,6 @@ function Home() {
             >
               ⚙️
             </button>
-
-            {/* MOBILE LOGOUT */}
 
             <button
               type="button"
@@ -562,32 +572,22 @@ function Home() {
           </div>
         </header>
 
-        {/* =====================================================
-            WORKSPACE
-        ====================================================== */}
-
+        {/* WORKSPACE */}
         <section className="nexus-workspace">
           {messages.length === 0 ? (
             <div className="nexus-dashboard">
-              {/* HERO */}
-
               <div className="nexus-hero">
                 <div className="nexus-ai-logo">✦</div>
-
                 <p className="nexus-eyebrow">NEXUSAI AI WORKSPACE</p>
-
                 <h1>
                   What can I help you
                   <span> create?</span>
                 </h1>
-
                 <p className="nexus-hero-description">
                   Chat with NexusAI, create images and videos, generate music,
                   analyze what you see and explore the future of AI.
                 </p>
               </div>
-
-              {/* QUICK ACTIONS */}
 
               <div className="nexus-section-heading">
                 <div>
@@ -605,36 +605,28 @@ function Home() {
                     onClick={() => handleQuickAction(action.title)}
                   >
                     <div className="nexus-quick-icon">{action.icon}</div>
-
                     <div>
                       <strong>{action.title}</strong>
-
                       <p>{action.description}</p>
                     </div>
-
                     <span className="nexus-arrow">→</span>
                   </button>
                 ))}
               </div>
-
-              {/* FEATURES */}
 
               <div className="nexus-feature-row">
                 <div>
                   <span>✦</span>
                   <strong>AI Conversations</strong>
                 </div>
-
                 <div>
                   <span>🎨</span>
                   <strong>Image Generation</strong>
                 </div>
-
                 <div>
                   <span>🎬</span>
                   <strong>Video Generation</strong>
                 </div>
-
                 <div>
                   <span>🎵</span>
                   <strong>Music Generation</strong>
@@ -655,12 +647,10 @@ function Home() {
                   {item.sender === "ai" && (
                     <div className="nexus-message-avatar">✦</div>
                   )}
-
                   <div className="nexus-message-content">
                     <div className="nexus-message-name">
                       {item.sender === "user" ? displayName : "NexusAI"}
                     </div>
-
                     <div className="nexus-message-bubble">{item.text}</div>
                   </div>
                 </div>
@@ -669,10 +659,7 @@ function Home() {
           )}
         </section>
 
-        {/* =====================================================
-            MESSAGE COMPOSER
-        ====================================================== */}
-
+        {/* MESSAGE COMPOSER */}
         <div className="nexus-composer-wrapper">
           {messageError && (
             <div className="nexus-message-error">{messageError}</div>
@@ -685,7 +672,6 @@ function Home() {
             >
               ＋
             </button>
-
             <input
               type="text"
               placeholder={
@@ -695,7 +681,6 @@ function Home() {
               onChange={(event) => setMessage(event.target.value)}
               disabled={sendingMessage}
             />
-
             <button
               type="button"
               className="nexus-composer-button"
@@ -703,7 +688,6 @@ function Home() {
             >
               🎙️
             </button>
-
             <button
               type="submit"
               className="nexus-send-button"
@@ -712,7 +696,6 @@ function Home() {
               {sendingMessage ? "…" : "↑"}
             </button>
           </form>
-
           <p className="nexus-disclaimer">
             NexusAI can make mistakes. Check important information before
             relying on it.
@@ -720,10 +703,7 @@ function Home() {
         </div>
       </section>
 
-      {/* =====================================================
-          SETTINGS MODAL
-      ====================================================== */}
-
+      {/* SETTINGS MODAL */}
       {settingsOpen && (
         <div
           className="nexus-settings-overlay"
@@ -739,18 +719,14 @@ function Home() {
             aria-modal="true"
             aria-labelledby="settings-title"
           >
-            {/* SETTINGS HEADER */}
-
             <div className="nexus-settings-header">
               <div>
                 <span className="nexus-settings-title-icon">⚙️</span>
-
                 <div>
                   <h2 id="settings-title">Settings</h2>
                   <p>Manage your NexusAI account</p>
                 </div>
               </div>
-
               <button
                 type="button"
                 className="nexus-settings-close"
@@ -761,16 +737,12 @@ function Home() {
               </button>
             </div>
 
-            {/* ACCOUNT */}
-
             <div className="nexus-settings-section">
               <div className="nexus-settings-section-title">ACCOUNT</div>
-
               <div className="nexus-account-card">
                 <div className="nexus-account-avatar">
                   {displayName.charAt(0).toUpperCase()}
                 </div>
-
                 <div className="nexus-account-details">
                   <strong>{displayName}</strong>
                   <span>{userEmail}</span>
@@ -778,20 +750,16 @@ function Home() {
               </div>
             </div>
 
-            {/* ACCOUNT INFORMATION */}
-
             <div className="nexus-settings-section">
               <div className="nexus-settings-section-title">
                 ACCOUNT INFORMATION
               </div>
-
               <div className="nexus-settings-row">
                 <div>
                   <strong>Display name</strong>
                   <span>{displayName}</span>
                 </div>
               </div>
-
               <div className="nexus-settings-row">
                 <div>
                   <strong>Email address</strong>
@@ -800,11 +768,8 @@ function Home() {
               </div>
             </div>
 
-            {/* SESSION */}
-
             <div className="nexus-settings-section">
               <div className="nexus-settings-section-title">SESSION</div>
-
               <button
                 type="button"
                 className="nexus-settings-logout"
@@ -812,16 +777,12 @@ function Home() {
                 disabled={loggingOut}
               >
                 <span>↪</span>
-
                 <div>
                   <strong>{loggingOut ? "Logging out..." : "Log out"}</strong>
-
                   <small>Sign out of your NexusAI account</small>
                 </div>
               </button>
             </div>
-
-            {/* FOOTER */}
 
             <div className="nexus-settings-footer">
               <button
