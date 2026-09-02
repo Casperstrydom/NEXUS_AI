@@ -1,5 +1,4 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 async function apiRequest(endpoint, options = {}) {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -7,6 +6,7 @@ async function apiRequest(endpoint, options = {}) {
       "Content-Type": "application/json",
       ...(options.headers || {}),
     },
+    credentials: "include",
     ...options,
   });
 
