@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../context/useAuth.js";
 import API_URL from "../../config/api.js";
 
@@ -76,6 +76,7 @@ function Home() {
 
   const [sendingMessage, setSendingMessage] = useState(false);
   const [messageError, setMessageError] = useState("");
+  const messagesEndRef = useRef(null);
 
   // State for mobile sidebar
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -102,6 +103,12 @@ function Home() {
 
     loadConversations();
   }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [messages]);
 
   async function openConversation(id) {
     try {
@@ -190,6 +197,12 @@ function Home() {
     try {
       let currentConversationId = conversationId;
 
+      /**
+       * ========================================================
+       * CREATE CONVERSATION IF THIS IS A NEW CHAT
+       * ========================================================
+       */
+
       if (!currentConversationId) {
         const conversationResponse = await fetch(
           `${API_URL}/api/conversations`,
@@ -223,6 +236,12 @@ function Home() {
         ]);
       }
 
+      /**
+       * ========================================================
+       * ADD USER MESSAGE TO THE UI
+       * ========================================================
+       */
+
       const temporaryUserMessage = {
         id: `temp-user-${Date.now()}`,
         sender: "user",
@@ -234,8 +253,32 @@ function Home() {
 
       setMessage("");
 
+      /**
+       * ========================================================
+       * ADD EMPTY AI MESSAGE
+       *
+       * This will be filled in as NexusAI streams its answer.
+       * ========================================================
+       */
+
+      const temporaryAIMessage = {
+        id: `temp-ai-${Date.now()}`,
+        sender: "ai",
+        text: "",
+        temporary: true,
+        streaming: true,
+      };
+
+      setMessages((previous) => [...previous, temporaryAIMessage]);
+
+      /**
+       * ========================================================
+       * START STREAMING REQUEST
+       * ========================================================
+       */
+
       const response = await fetch(
-        `${API_URL}/api/conversations/${currentConversationId}/messages`,
+        `${API_URL}/api/conversations/${currentConversationId}/messages/stream`,
         {
           method: "POST",
           headers: {
@@ -248,33 +291,238 @@ function Home() {
         },
       );
 
-      const data = await response.json();
+      /**
+       * ========================================================
+       * HANDLE BACKEND ERROR
+       * ========================================================
+       */
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to send message");
+      if (!response.ok) {
+        let errorMessage = "Failed to send message";
+
+        try {
+          const errorData = await response.json();
+
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // Ignore JSON parsing errors
+        }
+
+        throw new Error(errorMessage);
       }
 
-      setMessages((previous) =>
-        previous.map((item) =>
-          item.temporary
-            ? {
-                id: data.userMessage._id,
-                sender: "user",
-                text: data.userMessage.content,
-              }
-            : item,
-        ),
-      );
+      /**
+       * ========================================================
+       * CHECK STREAM SUPPORT
+       * ========================================================
+       */
 
-      const assistantMessage = {
-        id: data.assistantMessage._id,
-        sender: "ai",
-        text: data.assistantMessage.content,
-      };
+      if (!response.body) {
+        throw new Error("Streaming is not supported by this browser.");
+      }
 
-      setMessages((previous) => [...previous, assistantMessage]);
+      /**
+       * ========================================================
+       * READ STREAM
+       * ========================================================
+       */
+
+      const reader = response.body.getReader();
+
+      const decoder = new TextDecoder();
+
+      let buffer = "";
+
+      let streamFinished = false;
+
+      while (!streamFinished) {
+        const { value, done } = await reader.read();
+
+        /**
+         * Add incoming data to the buffer.
+         */
+
+        if (value) {
+          buffer += decoder.decode(value, {
+            stream: !done,
+          });
+        }
+
+        /**
+         * SSE events are separated by two new lines.
+         */
+
+        const events = buffer.split("\n\n");
+
+        /**
+         * Keep incomplete data for the next chunk.
+         */
+
+        buffer = events.pop() || "";
+
+        /**
+         * ======================================================
+         * PROCESS STREAM EVENTS
+         * ======================================================
+         */
+
+        for (const event of events) {
+          const lines = event.split("\n");
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) {
+              continue;
+            }
+
+            const jsonText = line.slice(6);
+
+            let streamData;
+
+            try {
+              streamData = JSON.parse(jsonText);
+            } catch (error) {
+              console.error("Failed to parse streaming data:", error);
+
+              continue;
+            }
+
+            /**
+             * ==================================================
+             * USER MESSAGE CONFIRMED
+             * ==================================================
+             */
+
+            if (streamData.type === "user_message") {
+              setMessages((previous) =>
+                previous.map((item) =>
+                  item.temporary &&
+                  item.sender === "user" &&
+                  item.text === cleanMessage
+                    ? {
+                        id: streamData.message._id,
+                        sender: "user",
+                        text: streamData.message.content,
+                      }
+                    : item,
+                ),
+              );
+            }
+
+            /**
+             * ==================================================
+             * AI TEXT CHUNK
+             * ==================================================
+             */
+
+            if (streamData.type === "text") {
+              setMessages((previous) =>
+                previous.map((item) =>
+                  item.id === temporaryAIMessage.id
+                    ? {
+                        ...item,
+                        text: item.text + streamData.text,
+                      }
+                    : item,
+                ),
+              );
+            }
+
+            /**
+             * ==================================================
+             * STREAM COMPLETE
+             * ==================================================
+             */
+
+            if (streamData.type === "done") {
+              streamFinished = true;
+
+              setMessages((previous) =>
+                previous.map((item) =>
+                  item.id === temporaryAIMessage.id
+                    ? {
+                        id: streamData.message._id,
+                        sender: "ai",
+                        text: streamData.message.content,
+                        streaming: false,
+                      }
+                    : item,
+                ),
+              );
+            }
+
+            /**
+             * ==================================================
+             * STREAM ERROR
+             * ==================================================
+             */
+
+            if (streamData.type === "error") {
+              throw new Error(
+                streamData.message || "Failed to stream AI response",
+              );
+            }
+          }
+        }
+
+        /**
+         * Stop reading when the server closes the stream.
+         */
+
+        if (done) {
+          break;
+        }
+      }
+
+      /**
+       * ========================================================
+       * PROCESS FINAL BUFFER
+       * ========================================================
+       */
+
+      if (buffer.trim()) {
+        const lines = buffer.split("\n");
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) {
+            continue;
+          }
+
+          const jsonText = line.slice(6);
+
+          try {
+            const streamData = JSON.parse(jsonText);
+
+            if (streamData.type === "done") {
+              setMessages((previous) =>
+                previous.map((item) =>
+                  item.id === temporaryAIMessage.id
+                    ? {
+                        id: streamData.message._id,
+                        sender: "ai",
+                        text: streamData.message.content,
+                        streaming: false,
+                      }
+                    : item,
+                ),
+              );
+            }
+          } catch (error) {
+            console.error("Failed to parse final streaming data:", error);
+          }
+        }
+      }
     } catch (error) {
       console.error("Send message error:", error);
+
+      /**
+       * Remove temporary AI message if streaming failed.
+       */
+
+      setMessages((previous) =>
+        previous.filter(
+          (item) => !(item.temporary && item.sender === "ai" && item.streaming),
+        ),
+      );
 
       setMessageError(
         error.message || "Something went wrong while contacting NexusAI.",
@@ -647,14 +895,30 @@ function Home() {
                   {item.sender === "ai" && (
                     <div className="nexus-message-avatar">✦</div>
                   )}
+
                   <div className="nexus-message-content">
                     <div className="nexus-message-name">
                       {item.sender === "user" ? displayName : "NexusAI"}
                     </div>
-                    <div className="nexus-message-bubble">{item.text}</div>
+
+                    <div className="nexus-message-bubble">
+                      {item.text}
+
+                      {item.streaming && (
+                        <span
+                          className="nexus-streaming-orb"
+                          aria-label="NexusAI is responding"
+                        >
+                          ◉
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
+
+              {/* Invisible element used to keep the chat scrolled to the bottom */}
+              <div ref={messagesEndRef} />
             </div>
           )}
         </section>

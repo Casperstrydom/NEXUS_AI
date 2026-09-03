@@ -218,9 +218,7 @@ export const generateAIResponse = async (message, conversationHistory = []) => {
         role: "system",
         content: SYSTEM_INSTRUCTIONS,
       },
-
       ...conversationHistory,
-
       {
         role: "user",
         content: message.trim(),
@@ -235,7 +233,37 @@ export const generateAIResponse = async (message, conversationHistory = []) => {
     return response.output_text;
   } catch (error) {
     console.error("AI Service Error:", error);
-
     throw new Error("Failed to generate AI response.");
+  }
+};
+
+export const streamAIResponse = async (message, conversationHistory = []) => {
+  try {
+    if (!message || !message.trim()) {
+      throw new Error("Message is required.");
+    }
+
+    const input = [
+      {
+        role: "system",
+        content: SYSTEM_INSTRUCTIONS,
+      },
+      ...conversationHistory,
+      {
+        role: "user",
+        content: message.trim(),
+      },
+    ];
+
+    const stream = await openai.responses.create({
+      model: "gpt-5.6",
+      input,
+      stream: true,
+    });
+
+    return stream;
+  } catch (error) {
+    console.error("AI Streaming Service Error:", error);
+    throw new Error("Failed to start AI response stream.");
   }
 };

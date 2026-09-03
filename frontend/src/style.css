@@ -671,16 +671,17 @@ button:disabled {
 ========================================================= */
 
 .nexus-sidebar {
-  width: 270px;
+  position: sticky;
+  top: 0;
 
+  width: 270px;
   height: 100vh;
+  min-height: 100vh;
 
   flex-shrink: 0;
 
   display: flex;
-
   flex-direction: column;
-
   justify-content: space-between;
 
   padding: 20px 14px;
@@ -700,12 +701,27 @@ button:disabled {
 
 .nexus-sidebar-top {
   min-height: 0;
+  flex: 1;
 
   display: flex;
-
   flex-direction: column;
+
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
+.nexus-sidebar-top::-webkit-scrollbar {
+  width: 5px;
+}
+
+.nexus-sidebar-top::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nexus-sidebar-top::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #27272a;
+}
 /* =========================================================
    SIDEBAR BRAND
 ========================================================= */
@@ -1275,14 +1291,13 @@ button:disabled {
 ========================================================= */
 
 .nexus-main {
-  width: 100%;
-
+  flex: 1;
+  width: 0;
   min-width: 0;
-
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
 
   display: flex;
-
   flex-direction: column;
 
   overflow: hidden;
@@ -2668,33 +2683,27 @@ button:disabled {
   }
 
   .nexus-app {
-    width: min(500px, calc(100% - 18px));
-
-    min-height: calc(100vh - 18px);
-
-    height: calc(100vh - 18px);
-
-    margin: 9px auto;
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    min-height: 100vh;
+    max-height: 100vh;
 
     display: flex;
-
-    border: 1px solid #36363d;
-
-    border-radius: 18px;
-
     overflow: hidden;
 
     background:
       radial-gradient(
-        circle at 50% 15%,
+        circle at 50% 0%,
         rgba(124, 58, 237, 0.09),
-        transparent 40%
+        transparent 35%
       ),
-      #0a0a0d;
-
-    box-shadow:
-      0 25px 80px rgba(0, 0, 0, 0.5),
-      0 0 0 1px rgba(255, 255, 255, 0.015);
+      radial-gradient(
+        circle at 85% 30%,
+        rgba(124, 58, 237, 0.05),
+        transparent 30%
+      ),
+      #09090b;
   }
 
   .nexus-main {
@@ -2980,6 +2989,32 @@ button:disabled {
 
   .nexus-settings-footer {
     padding: 17px;
+  }
+}
+/* STREAMING CURSOR */
+.nexus-streaming-orb {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 13px;
+  line-height: 1;
+  vertical-align: middle;
+  animation: nexusOrbPulse 1.2s ease-in-out infinite;
+  text-shadow:
+    0 0 5px rgba(124, 58, 237, 0.9),
+    0 0 12px rgba(124, 58, 237, 0.7),
+    0 0 20px rgba(124, 58, 237, 0.45);
+}
+
+@keyframes nexusOrbPulse {
+  0%,
+  100% {
+    transform: scale(0.85);
+    opacity: 0.55;
+  }
+
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
   }
 }
 
